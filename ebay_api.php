@@ -13,9 +13,9 @@
 
         function __construct() {   
             // Import & Set IDs
-            $this->ebay_app_id = "YOUR APP ID";
-            $this->ebay_dev_id = "YOUR DEV ID";
-            $this->ebay_client_secret = "YOUR CLIENT SECRET";
+            $this->ebay_app_id = "Your Application ID.";
+            $this->ebay_dev_id = "Your Development ID.";
+            $this->ebay_client_secret = "Your Client Secret.";
         }
         
         // Misc IDs
@@ -26,7 +26,6 @@
         // Main Vars
         public $seller_data;
         public $product_data;
-        
 
         function SetData($data_set, $data_name, $data){
 
@@ -70,7 +69,7 @@
 
         function GrabData($data_set, $data_name){
 
-            // Data Sets (0 = Product Information, 1 = Seller Information)
+            // Data Sets (0 = Listing Information, 1 = Seller Information, 2 = Search Results)
             if($data_set === 0){
                 
                 if($this->product_data[$data_name] !== null){
@@ -110,15 +109,27 @@
             }
         }
     
+        /*
+         
+        !! f*cking stoned coding rant below !!
+        
+        This is by far the bane of my existence, I have not found 1 bug free way of getting an Item ID from a URL.
+        I have tried making 1 request to the URL and grabbing the item-id from the Source-HTML but this wasn't consistent across all their sites.
+        Even the ones using the same designs have slight differences. (The information just wasn't there, its removed fully, so I can't just handle the exceptions)
+        So I settled on using Regex to just check the link they provide for a string of integers between 11 - 13. If it exists it uses that as the item-id.
+        An obvious fault with this is if a persons listing name has a string of 11 - 13 numbers in a row it'll return false.
+
+        Side Note: I haven't found an ItemID in 2+ years of dealing with ebay that is longer or shorter than 12 numbers. But I added the extra number on each side
+        of the range (11-13) as padding. On the good news I have scanned really hard and found 0 listings with a string of numbers in their title that matches our regex.
+        So thats neat. It also checks to make sure the string also contains "ebay.". And if it doesn't it just returns false.
+
+        */
+        
         function grab_item_id($ebay_url){
             // Check if its an ebay domain.
             if(strpos($ebay_url, 'ebay.')){
 
                 // The reason I decided to use Regex for this as it was the only consistent thing across all ebay domains.
-                // I also wanted to try not have to use requests to the URL provided.
-                // This Regex will check for 11-13 numbers in a row and if so, it will grab that match and save it. 
-                // This isn't very fool proof as if your ebay product link has a 11-13 digit number it will return 2 matches and fail the lookup.
-                
                 $regex = '/\d{11,13}/m';
                 preg_match_all($regex, $ebay_url, $matches, PREG_SET_ORDER, 0);
                 
@@ -130,11 +141,11 @@
                     return true;
                 } 
 
-                // Fails if more than 1 ID is detected in the URL, Return Image Guide
+                // Fails if more than 1 ID is detected in the URL
                 return false;
             }
             
-            // Fails if link doesn't have "ebay." in the string, , Return Image Guide
+            // Fails if link doesn't have "ebay." in the string
             return false;  
         }
     
@@ -144,7 +155,7 @@
                 . "&SERVICE-VERSION=1.13.0"
                 . "&SECURITY-APPNAME={$this->ebay_app_id}"
                 . "&GLOBAL-ID={$this->site2global($site)}"
-                . "&keywords={$this->GrabData(0, "listing_id")}"
+                . "&keywords={$this->GrabData(0, "listing_id")}"    
                 . "&paginationInput.entriesPerPage=3"
                 . "&descriptionSearch=true"; 
 
@@ -241,6 +252,35 @@
 
             return false;
         }
+        
+        // Returns Greenwich Mean Time 
+        // YYYY - MM - DD / HH:MM:SS:MS
+        function GetEbayTime(){
+            $request_url = "https://open.api.ebay.com/shopping?callname=GeteBayTime"
+            . "&responseencoding=XML"
+            . "&appid={$this->ebay_app_id}"
+            . "&siteid=0"
+            . "&version=1157";
+
+            $request = file_get_contents($request_url);
+            $data = simplexml_load_string($request);
+            $error = error_get_last();
+            
+            // If the request is GOOD, PHP will return a Notice about trying to reach
+            // an unassigned array offset ($error['message']); 
+            // Might want to use [ error_reporting(0); ] in production.
+            if(!$error['message'] && $data->Ack != "Failure"){
+                return $data->Timestamp;
+            } else {
+                return "There was an issue with your request.";
+                error_clear_last();
+            }
+        }
+        
+        /*
+        These are utility functions built to help with 
+        general use of the API.
+        */
         
         function site2domain($site){
             switch($site){
@@ -371,6 +411,58 @@
                 default:
                     return "EBAY-US";
             }
+        }
+
+        // Converts currency abbreviations to symbols. 
+        // Only made this because I like having the symbol over chars.
+        // USD = $, EUR = €, GBP = £, etc
+        // This supports every domain on https://developer.ebay.com/DevZone/merchandising/docs/Concepts/SiteIDToGlobalID.html
+        function curr2sym($curr) {
+            switch($curr){
+                case "USD":
+                    return "$";
+                    
+                case "GBP":
+                    return "£";
+                    
+                case "EUR":
+                    return "€";
+                    
+                case "CAD":
+                    // Canadian Money Symbols: $, C$, CAD, Can$
+                    return "C$";
+
+                case "AUD":
+                    // Australian Money Symbols: $, A$, AUD
+                    return "A$";
+
+                case "CHF": 
+                    // Switzerland Money Symbols: CHf, Fr., SFr.
+                    return "Fr.";
+
+                case "HKD":
+                    // Hong Kong Money Symbols: $, HK$
+                    return "HK$";
+                    
+                case "MYR":
+                    return "RM";
+
+                case "PHP":
+                    // hehe php (Phillipines)
+                    return "₱";
+
+                case "PLN":
+                    return "zł";
+                    
+                case "SGD":
+                    // Singapore Money Symbols: $, S$
+                    return "S$";
+                    
+                default:
+                    // If this fails somehow it'll just return the three chars instead of nothing.
+                    return $curr;
+            }
+            
         }
     }
 ?>
