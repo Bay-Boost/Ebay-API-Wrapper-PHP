@@ -59,8 +59,6 @@ if($ebay_api->grab_item_id($ebay_link)){
     // If you want to know how to call something specifically, procceed to line 181 of the ebay_api.php file.
 }
 ```
-<<<<<<< Updated upstream
-=======
 
 ## Function Information
 ```
@@ -101,6 +99,5 @@ Data Returned:-
 ```
 
 ## Credits
-www.ebay.com <br>
+www.ebay.com - Thank you. <br>
 www.watchcount.com - Jay Specifically, thank you for helping me with some things that aren't documented very well.
->>>>>>> Stashed changes
