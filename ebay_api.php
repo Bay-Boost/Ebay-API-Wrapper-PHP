@@ -13,19 +13,22 @@
 
         function __construct() {   
             // Import & Set IDs
-            $this->ebay_app_id = "Your Application ID.";
-            $this->ebay_dev_id = "Your Development ID.";
-            $this->ebay_client_secret = "Your Client Secret.";
+            $this->ebay_app_id = "Your Ebay Application ID.";
+            $this->ebay_dev_id = "Your Ebay development ID.";
+            $this->ebay_client_secret = "Your Ebay Client Secret.";
         }
         
         // Misc IDs
-        public $ebay_app_id;
-        public $ebay_dev_id;
-        public $ebay_client_secret;
+        private $ebay_app_id;
+        private $ebay_dev_id;
+        private $ebay_client_secret;
 
         // Main Vars
-        public $seller_data;
-        public $product_data;
+        private $seller_data;
+        private $product_data;
+
+        private $call_logs = [];
+        private $write_call_logs;
 
         function SetData($data_set, $data_name, $data){
 
@@ -109,9 +112,27 @@
             }
         }
     
+        // true = Writes logs to file, false = doesn't write logs to file.
+        function Log($write_file, $call, $status){
+            // https://www.php.net/manual/en/timezones.php
+            // date_default_timezone_set("Europe/London");
+            $date = date("Y-m-d");
+            $date_time = date("Y-m-d H:i:sA");
+
+            $log_string = "[{$date_time}] Call: {$call} | Status: {$status}";
+            array_push($this->call_logs, $log_string);
+
+            if ($write_file){
+                // Opens the file with the current date and writes to it.
+                $directory = "{$date}-ebay.txt";
+                $file = fopen($directory, "a+") or die("Unable to open file!");
+                fwrite($file, $log_string . "\n");
+                fclose($file);
+            }   
+        }
+
         /*
-         
-        !! f*cking stoned coding rant below !!
+        !! stoned coding rant below !!
         
         This is by far the bane of my existence, I have not found 1 bug free way of getting an Item ID from a URL.
         I have tried making 1 request to the URL and grabbing the item-id from the Source-HTML but this wasn't consistent across all their sites.
@@ -122,7 +143,6 @@
         Side Note: I haven't found an ItemID in 2+ years of dealing with ebay that is longer or shorter than 12 numbers. But I added the extra number on each side
         of the range (11-13) as padding. On the good news I have scanned really hard and found 0 listings with a string of numbers in their title that matches our regex.
         So thats neat. It also checks to make sure the string also contains "ebay.". And if it doesn't it just returns false.
-
         */
         
         function grab_item_id($ebay_url){
@@ -381,16 +401,25 @@
                 case "Germany":
                     return "EBAY-DE";
 
+                case "HongKong":
+                    return "EBAY-HK";
+
+                case "India": 
+                    return "EBAY-IN";
+                
                 case "Ireland":
                     return "EBAY-IE";
 
                 case "Italy":
                     return "EBAY-IT";
 
+                case "Malaysia":
+                    return "EBAY-MY";
+
                 case "Netherlands":
                     return "EBAY-NL";
-
-                case "Philippines":
+                
+                 case "Philippines":
                     return "EBAY-PH";
 
                 case "Poland":
@@ -398,6 +427,9 @@
 
                 case "Spain":
                     return "EBAY-ES";
+                                                       
+                case "Singapore":
+                    return "EBAY-SG";
 
                 case "Switzerland":
                     return "EBAY-CH";
@@ -408,6 +440,9 @@
                 case "US":
                     return "EBAY-US";
                 
+                case "Motors":
+                    return "EBAY-MOTOR";
+                    
                 default:
                     return "EBAY-US";
             }
