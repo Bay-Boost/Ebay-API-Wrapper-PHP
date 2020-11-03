@@ -29,6 +29,6 @@ Please follow the install guide within our documentation! You can find the link 
 <a href="https://bay-boost.com/desc-copy.php">Description Copier</a>
 
 ## Credits
-Xiaoying Riley - Thank you for making a Bootstrap Documentation site. 
+Xiaoying Riley - Thank you for making a Bootstrap Documentation site. <br>
 www.ebay.com - Thank you. <br>
 www.watchcount.com - Jay Specifically, thank you for helping me with some things that aren't documented very well.
