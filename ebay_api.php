@@ -1,16 +1,8 @@
-<?php  
-    // 2 API CALL EXPLANATION
-    // The reason Two Requests must be made to the API is because Ebay has horrible endpoint management and half
-    // the data you need isn't available with APIs they say it is. Aka WatchCount is meant to be on the findItems call but it doesn't return.
-    // So we gotta do a shitty hacky work around to grab the watchers. (You can only get watchers from the finding api...)
-
-    // Grab ID > findSingleItem API Call > Grab "Site" tag from XML > Convert it to a Global ID > Make a Call to findItemsAdvanced > Grab WatchCount
-    // Return the Data to user. (Finding API and Shopping API are both different end-points and have their usage calculated seperately. So its basically only 1 Call on Each.
-    // Finding API = 5,000 Calls a Day
-    // Shopping API = 5,000 Calls a Day
+<?php
+    // Change this to Debug.
+    error_reporting(0);
     
     class ebay_api {
-
         function __construct() {   
             // Import & Set IDs
             $this->ebay_app_id = "Your Ebay Application ID.";
@@ -28,90 +20,8 @@
         private $product_data;
 
         private $call_logs = [];
-        private $write_call_logs;
+        private $write_call_logs = false;
 
-        function SetData($data_set, $data_name, $data){
-
-            // Data Sets (0 = Product Information, 1 = Seller Information)
-            if($data_set === 0){
-                
-                if($data == NULL || $data == ""){
-
-                    $this->product_data[$data_name] = "No Value Provided.";
-                    return;
-
-                } else {
-
-                    $this->product_data[$data_name] = $data;
-                    return;
-                    
-                }
-                
-                
-            } else if ($data_set === 1) {
-
-                if($data == NULL || $data == ""){
-
-                    $this->seller_data[$data_name] = "No Value Provided";
-                    return;
-                    
-                } else {
-
-                    $this->seller_data[$data_name] = $data;
-                    return;
-
-                }
-                
-                
-            } else {
-
-                return "[Error] No map specified.";
-            
-            }
-        }
-
-        function GrabData($data_set, $data_name){
-
-            // Data Sets (0 = Listing Information, 1 = Seller Information, 2 = Search Results)
-            if($data_set === 0){
-                
-                if($this->product_data[$data_name] !== null){
-
-                    if($data_name == "listing_remaining"){
-
-                        return $this->product_data[$data_name];
-                    }
-                    
-                    return $this->product_data[$data_name][0];
-                }
-
-                return "[Error] No Data found.";
-                
-            } else if ($data_set === 1) {
-
-                if($this->seller_data[$data_name] !== null){
-
-                    if($data_name == "top_rated_seller" || $data_name == "seller_link" || $data_name == "seller_other_listings"){
-
-                        return $this->seller_data[$data_name];
-
-                    } else {
-
-                        return $this->seller_data[$data_name][0];
-
-                    }
-
-                }
-
-                return "[Error] No Data found.";
-
-            } else {
-
-                return "[Error] No map specified.";
-            
-            }
-        }
-    
         // true = Writes logs to file, false = doesn't write logs to file.
         function Log($write_file, $call, $status){
             // https://www.php.net/manual/en/timezones.php
@@ -130,7 +40,7 @@
                 fclose($file);
             }   
         }
-
+        
         /*
         !! stoned coding rant below !!
         
@@ -141,141 +51,125 @@
         An obvious fault with this is if a persons listing name has a string of 11 - 13 numbers in a row it'll return false.
 
         Side Note: I haven't found an ItemID in 2+ years of dealing with ebay that is longer or shorter than 12 numbers. But I added the extra number on each side
-        of the range (11-13) as padding. On the good news I have scanned really hard and found 0 listings with a string of numbers in their title that matches our regex.
+        of the range (11-12) as padding. On the good news I have scanned really hard and found 0 listings with a string of numbers in their title that matches our regex.
         So thats neat. It also checks to make sure the string also contains "ebay.". And if it doesn't it just returns false.
         */
-        
-        function grab_item_id($ebay_url){
-            // Check if its an ebay domain.
-            if(strpos($ebay_url, 'ebay.')){
-
-                // The reason I decided to use Regex for this as it was the only consistent thing across all ebay domains.
-                $regex = '/\d{11,13}/m';
-                preg_match_all($regex, $ebay_url, $matches, PREG_SET_ORDER, 0);
-                
-                if(count($matches[0]) == 1){
-                    // Save Item ID
-                    $this->SetData(0, "listing_id", $matches[0]);
-                    
-                    // Proceed
-                    return true;
-                } 
-
-                // Fails if more than 1 ID is detected in the URL
-                return false;
+         
+        function GetSingleItem($item_id, $site_id, $html_description){
+            if($html_description === true){
+                // You can't grab both at the same time. So you have to ask for either or. Default is without the HTML Mark-up.
+                $request_url = "https://open.api.ebay.com/shopping?" 
+                . "callname=GetSingleItem"
+                . "&responseencoding=XML"
+                . "&appid={$this->ebay_app_id}"
+                . "&siteid={$site_id}"
+                . "&version=1157"
+                . "&ItemID={$item_id}"
+                . "&IncludeSelector=Details,Description,ItemSpecifics,Variations,Compatibility";
+            } else {
+                $request_url = "https://open.api.ebay.com/shopping?" 
+                . "callname=GetSingleItem"
+                . "&responseencoding=XML"
+                . "&appid={$this->ebay_app_id}"
+                . "&siteid={$site_id}"
+                . "&version=1157"
+                . "&ItemID={$item_id}"
+                . "&IncludeSelector=Details,Description,TextDescription,ItemSpecifics,Variations,Compatibility";
             }
-            
-            // Fails if link doesn't have "ebay." in the string
-            return false;  
-        }
-    
-        function watcher_lookup($site){
-            // Grab WatchCount with Converted Global ID
-            $request_url = "https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findItemsAdvanced"
-                . "&SERVICE-VERSION=1.13.0"
-                . "&SECURITY-APPNAME={$this->ebay_app_id}"
-                . "&GLOBAL-ID={$this->site2global($site)}"
-                . "&keywords={$this->GrabData(0, "listing_id")}"    
-                . "&paginationInput.entriesPerPage=3"
-                . "&descriptionSearch=true"; 
 
-                $request = file_get_contents($request_url);
-                $data = simplexml_load_string($request);
-                
-                if($data[0]->Ack !== "Failure"){
-                    // This is REALLY fucking weird. But I'ma document it anyway.
-                    // $data[0]->searchResult[0]->item->listingInfo->watchCount[0] and $data[0]->searchResult[0]->item->listingInfo->watchCount return the same value but the one without [0] also returns null if empty.
-                    // The one without [0] just returns an empty XML Object.
-                    
-                    if($data[0]->searchResult[0]->item->listingInfo->watchCount[0] !== NULL){
-                        
-                        $this->SetData(0, "listing_watchers", $data[0]->searchResult[0]->item->listingInfo->watchCount);
-                        return;
-
-                    } else {
-
-                        $this->SetData(0, "listing_watchers", "0");
-                        return;
-                        
-                    }
-            
-                } else {
-
-                    $this->SetData(0, "listing_watchers", "Error Occured.");
-                    return;
-                    
-                }         
-        }
-
-        function product_lookup($site_id){
-            $request_url = "https://open.api.ebay.com/shopping?" 
-            . "callname=GetSingleItem"
-            . "&responseencoding=XML"
-            . "&appid={$this->ebay_app_id}"
-            . "&siteid={$site_id}"
-            . "&version=1157"
-            . "&ItemID={$this->GrabData(0, "listing_id")}"
-            . "&IncludeSelector=Details,Sold,Description";
-            
             $request = file_get_contents($request_url);
             $data = simplexml_load_string($request);
+            $error = error_get_last();
             
-            if($data->{'Ack'} !== "Failure"){
-                // Profile Data
-                $this->SetData(1, "seller_name", $data->Item->Seller->UserID);
-                $this->SetData(1, "seller_link", $this->site2domain($data->Item->Site) . "usr/" . $data->Item->Seller->UserID);
-                $this->SetData(1, "seller_total_feedback", $data->Item->Seller->FeedbackScore);
-                $this->SetData(1, "seller_feedback_percent", $data->Item->Seller->PositiveFeedbackPercent);
-                $this->SetData(1, "seller_other_listings", $this->site2domain($data->Item->Site) . "sch/" . $data->Item->Seller->UserID . "/m.html?_nkw=&_armrs=1&_ipg=&_from=");
-                $this->SetData(1, "seller_site", $data->Item->Site);
-                $this->SetData(1, "seller_country", $data->Item->Country);
+            if(!$error['message'] && $data->Ack == "Success"){
 
-                if($data->StoreFront !== NULL){
-                    $this->SetData(1, "seller_store_url", $data->StoreFront->StoreURL);
-                    $this->SetData(1, "seller_store_name", $data->StoreFront->StoreName);
+                if($write_call_logs){
+                    $this->Log(true, "GetSingleItem({$item_id}, {$site_id}, {$html_description});", "Success.");
                 }
 
-                if($data->Item->Seller->TopRatedSeller !== NULL){
-                    
-                    if($data->Item->Seller->TopRatedSeller == "true"){
+                $product_data['Ack'] = $data->Ack;
+                $product_data['Timestamp'] = $data->Timestamp;
+                $product_data['Build'] = $data->Build;
+                $product_data['Version'] = $data->Version;
+                $product_data['BestOfferStatus'] = $data->Item->BestOfferEnabled;
+                $product_data['Description'] = $data->Item->Description;
+                $product_data['ItemID'] = $data->Item->ItemID;
+                $product_data['EndTime'] = $data->Item->EndTime;
+                $product_data['StartTime'] = $data->Item->StartTime;
+                $product_data['NaturalURL'] = $data->Item->ViewItemURLForNaturalSearch;
+                $product_data['ListingType'] = $data->Item->ListingType;
+                $product_data['Location'] = $data->Item->Location;
+                $product_data['PaymentMethods'] = $data->Item->PaymentMethods;
+                $product_data['ListingGalleryURL'] = $data->Item->GalleryURL;
+                $product_data['ListingPictureURL'] = $data->Item->PictureURL;
+                $product_data['PostalCode'] = $data->Item->PostalCode;
+                $product_data['PrimaryCatergoryID'] = $data->Item->PrimaryCategoryID;
+                $product_data['PrimaryCatergoryName'] = $data->Item->PrimaryCategoryName;
+                $product_data['Quantity'] = $data->Item->Quantity;
+                $product_data['SellerUserID'] = $data->Item->Seller->UserID;
+                $product_data['RatingStar'] = $data->Item->Seller->FeedbackRatingStar;
+                $product_data['FeedbackScore'] = $data->Item->Seller->FeedbackScore;
+                $product_data['FeedbackPercent'] = $data->Item->Seller->PositiveFeedbackPercent;
+                $product_data['Remaining'] = $data->Item->Quantity - $data->Item->QuantitySold;
+                $product_data['BidCount'] = $data->Item->BidCount;
 
-                        $this->SetData(1, "top_rated_seller", "Yes.");
-
-                    } else {
-                        
-                        $this->SetData(1, "top_rated_seller", "No.");
-                        
-                    }
-                }
-
-                // Listing Data
-                $this->SetData(0, "listing_title", $data->Item->Title);
-                $this->SetData(0, "listing_created", $data->Item->StartTime);
-                $this->SetData(0, "listing_ending", $data->Item->EndTime);
-                $this->SetData(0, "listing_views", $data->Item->HitCount);
-                //$this->SetData(0, "listing_watchers", "Not available with this API Call.");
-                $this->SetData(0, "listing_quantity", $data->Item->Quantity);
-                $this->SetData(0, "listing_sold", $data->Item->QuantitySold);
-                $remaining = $data->Item->Quantity - $data->Item->QuantitySold;
-                $this->SetData(0, "listing_remaining",  (string)$remaining);
-                $this->SetData(0, "listing_link", $data->Item->ViewItemURLForNaturalSearch);
-                $this->SetData(0, "listing_image_link", $data->Item->PictureURL);
-                $this->SetData(0, "listing_price", $data->Item->CurrentPrice);
-                $this->SetData(0, "listing_currency", $data->Item->CurrentPrice['currencyID']);
-                $this->SetData(0, "listing_converted_price", $data->Item->ConvertedCurrentPrice);
-                $this->SetData(0, "listing_converted_currency", $data->Item->ConvertedCurrentPrice['currencyID']);
-                $this->SetData(0, "listing_desc", $data->Item->Description);
-                $this->SetData(0, "listing_id", $data->Item->ItemID);
+                // This is returned based on the Site-ID you give. So if the product is listed on the .co.uk domain and you give it the .com Site-Id (0), It'll return the converted price and the currency-id (USD).
+                $product_data['ConvertedCurrentPrice'] = $data->Item->ConvertedCurrentPrice;
+                $product_data['ConvertedCurrencyID'] =  $data->Item->ConvertedCurrentPrice['currencyID'];
                 
-                return;        
-            }
+                // This will always be the original price on the domain the product was listed. Regardless of Site-ID provided to the API Call.
+                $product_data['CurrentPrice'] = $data->Item->CurrentPrice;
+                $product_data['CurrentPriceCurrencyID'] = $data->Item->CurrentPrice['currencyID'];
 
-            return false;
+                $product_data['ListingStatus'] = $data->Item->ListingStatus;
+                $product_data['QuantitySold'] = $data->Item->QuantitySold;
+                $product_data['ShipToLocations'] = $data->Item->ShipToLocation;
+
+                // Returns the original domain the product was listed on.
+                $product_data['Site'] = $data->Item->Site;
+
+                $product_data['TimeLeft'] = $data->Item->TimeLeft;
+                $product_data['Title'] = $data->Item->Title;
+                $product_data['ProductBrand'] = $data->Item->ItemSpecifics->NameValueList[4]->Value;
+                $product_data['Views'] = $data->Item->HitCount;
+                $product_data['PrimaryCategoryIDPath'] = $data->Item->PrimaryCategoryIDPath;
+                $product_data['StoreURL'] = $data->Item->Storefront->StoreURL;
+                $product_data['StoreName'] = $data->Item->Storefront->StoreName;
+                $product_data['Country'] = $data->Item->Country;
+
+                $product_data['ReturnWithin'] = $data->Item->ReturnPolicy->ReturnsWithin;
+                $product_data['ReturnsAccepted'] = $data->Item->ReturnPolicy->ReturnsAccepted;
+                $product_data['ShippingCostPaidBy'] = $data->Item->ReturnPolicy->ShippingCostPaidBy;
+
+                $product_data['AutoPay'] = $data->Item->AutoPay;
+                $product_data['IntegratedMerchantCreditCardEnabled'] = $data->Item->IntegratedMerchantCreditCardEnabled;
+                $product_data['HandlingTime'] = $data->Item->HandlingTime;
+                $product_data['ConditionID'] = $data->Item->ConditionID;
+                $product_data['ProductCondition'] = $data->Item->ConditionDisplayName;
+                $product_data['QuantityAvailableHint'] = $data->Item->QuantityAvailableHint;
+                $product_data['QuantityThreshold'] = $data->Item->QuantityThreshold;
+                $product_data['GlobalShipping'] = $data->Item->GlobalShipping;
+                $product_data['QuantitySoldByPickupInStore'] = $data->Item->QuantitySoldByPickupInStore;
+                $product_data['SKU'] = $data->Item->SKU;
+                $product_data['NewBestOffer'] = $data->Item->NewBestOffer;
+                // $product_data[''] = $data->Item->;
+
+                return $product_data;
+            } else {
+
+                if($write_call_logs){
+                    $this->Log(true, "GetSingleItem({$item_id}, {$site_id});", "Error: The request has failed.");
+                }
+
+                return "There was an issue with your request.";
+                error_clear_last();
+            }
         }
-        
-        // Returns Greenwich Mean Time 
-        // YYYY - MM - DD / HH:MM:SS:MS
+            
         function GetEbayTime(){
+            // Returns Greenwich Mean Time 
+            // YYYY - MM - DD / HH:MM:SS:MS
+        
             $request_url = "https://open.api.ebay.com/shopping?callname=GeteBayTime"
             . "&responseencoding=XML"
             . "&appid={$this->ebay_app_id}"
@@ -289,19 +183,24 @@
             // If the request is GOOD, PHP will return a Notice about trying to reach
             // an unassigned array offset ($error['message']); 
             // Might want to use [ error_reporting(0); ] in production.
-            if(!$error['message'] && $data->Ack != "Failure"){
+            if(!$error['message'] && $data->Ack == "Success"){
+                
+                if($write_call_logs){
+                    $this->Log(true, "GetEbayTime()", "Success.");
+                }
+                
                 return $data->Timestamp;
             } else {
+                if($write_call_logs){
+                    $this->Log(true, "GetEbayTime()", "Error, failed to return ebay time.");
+                }
+ 
                 return "There was an issue with your request.";
                 error_clear_last();
             }
         }
         
-        /*
-        These are utility functions built to help with 
-        general use of the API.
-        */
-        
+        // These are utility functions built to help with general use of the API.    
         function site2domain($site){
             switch($site){
                 case "Australia":
@@ -371,7 +270,7 @@
                 return "https://www.ebay.com/";
             }
         }
-
+        
         function site2global($site){
             // Site -> Global-ID
             // Not all these are supported and ebay doesn't tell you what is. Need to manually check every single one to see if it works and if it doesn't remove it from the list.
@@ -448,11 +347,12 @@
             }
         }
 
-        // Converts currency abbreviations to symbols. 
-        // Only made this because I like having the symbol over chars.
-        // USD = $, EUR = €, GBP = £, etc
-        // This supports every domain on https://developer.ebay.com/DevZone/merchandising/docs/Concepts/SiteIDToGlobalID.html
         function curr2sym($curr) {
+            // Converts currency abbreviations to symbols. 
+            // Only made this because I like having the symbol over chars.
+            // USD = $, EUR = €, GBP = £, etc
+            // This supports every domain on https://developer.ebay.com/DevZone/merchandising/docs/Concepts/SiteIDToGlobalID.html
+        
             switch($curr){
                 case "USD":
                     return "$";
@@ -498,6 +398,45 @@
                     return $curr;
             }
             
+        }
+
+        function GrabItemID($ebay_url){
+            // Check if its an ebay domain.
+            if(strpos($ebay_url, 'ebay.')){
+
+                // The reason I decided to use Regex for this as it was the only consistent thing across all ebay domains.
+                // Also the reason its checking for 2 matches is because Regex returns a "Full Match" and "Group 1" 
+                // Both the exact same thing in this case.
+                
+                $regex = '/(\d{12})/m';
+                preg_match_all($regex, $ebay_url, $matches, PREG_SET_ORDER, 0);
+                print_r($matches);
+                if(count($matches[0]) == 2){
+                    
+                    // Logging Options
+                    $this->Log(true, "GrabItemID(\"{$ebay_url}\");", "Success");
+                    
+                    // Proceed  
+                    return $matches[0][0];
+
+                } else if (count($matches[0]) > 2){
+
+                    $this->Log(true, "GrabItemID(\"{$ebay_url}\");", "Error: More than 1 Match in Regex.");
+                    // Fails if more than 1 ID is detected in the URL
+                    return false;
+
+                } else {
+
+                    $this->Log(true, "GrabItemID(\"{$ebay_url}\");", "Error: No match, bad Link.");
+                    // Fails if 0 matches.
+                    return false;
+                
+                }          
+            }
+            
+            $this->Log(true, "GrabItemID(\"{$ebay_url}\");", "Error: Definitely not an Ebay link.");
+            // Fails if link doesn't have "ebay." in the string
+            return false;  
         }
     }
 ?>
