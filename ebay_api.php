@@ -16,9 +16,6 @@
         private $ebay_client_secret;
 
         // Main Vars
-        private $seller_data;
-        private $product_data;
-
         private $call_logs = [];
         private $write_call_logs = false;
 
@@ -40,21 +37,37 @@
                 fclose($file);
             }   
         }
-        
-        /*
-        !! stoned coding rant below !!
-        
-        This is by far the bane of my existence, I have not found 1 bug free way of getting an Item ID from a URL.
-        I have tried making 1 request to the URL and grabbing the item-id from the Source-HTML but this wasn't consistent across all their sites.
-        Even the ones using the same designs have slight differences. (The information just wasn't there, its removed fully, so I can't just handle the exceptions)
-        So I settled on using Regex to just check the link they provide for a string of integers between 11 - 13. If it exists it uses that as the item-id.
-        An obvious fault with this is if a persons listing name has a string of 11 - 13 numbers in a row it'll return false.
-
-        Side Note: I haven't found an ItemID in 2+ years of dealing with ebay that is longer or shorter than 12 numbers. But I added the extra number on each side
-        of the range (11-12) as padding. On the good news I have scanned really hard and found 0 listings with a string of numbers in their title that matches our regex.
-        So thats neat. It also checks to make sure the string also contains "ebay.". And if it doesn't it just returns false.
-        */
          
+        function GetEbayTime(){
+            // Returns Greenwich Mean Time 
+            // YYYY - MM - DD / HH:MM:SS:MS
+        
+            $request_url = "https://open.api.ebay.com/shopping?callname=GeteBayTime"
+            . "&responseencoding=XML"
+            . "&appid={$this->ebay_app_id}"
+            . "&siteid=0"
+            . "&version=1157";
+
+            $request = file_get_contents($request_url);
+            $data = simplexml_load_string($request);
+
+            if($data->Ack == "Success"){
+                
+                if($this->write_call_logs){
+                    $this->Log(true, "GetEbayTime()", "Success.");
+                }
+                
+                return $data->Timestamp;
+            } else {
+
+                if($this->write_call_logs){
+                    $this->Log(true, "GetEbayTime()", "Error, failed to return ebay time.");
+                }
+ 
+                return "There was an issue with your request.";
+            }
+        }
+
         function GetSingleItem($item_id, $site_id, $html_description){
             if($html_description === true){
                 // You can't grab both at the same time. So you have to ask for either or. Default is without the HTML Mark-up.
@@ -79,11 +92,10 @@
 
             $request = file_get_contents($request_url);
             $data = simplexml_load_string($request);
-            $error = error_get_last();
             
-            if(!$error['message'] && $data->Ack == "Success"){
+            if($data->Ack == "Success"){
 
-                if($write_call_logs){
+                if($this->write_call_logs){
                     $this->Log(true, "GetSingleItem({$item_id}, {$site_id}, {$html_description});", "Success.");
                 }
 
@@ -127,7 +139,7 @@
 
                 // Returns the original domain the product was listed on.
                 $product_data['Site'] = $data->Item->Site;
-
+                
                 $product_data['TimeLeft'] = $data->Item->TimeLeft;
                 $product_data['Title'] = $data->Item->Title;
                 $product_data['ProductBrand'] = $data->Item->ItemSpecifics->NameValueList[4]->Value;
@@ -136,11 +148,9 @@
                 $product_data['StoreURL'] = $data->Item->Storefront->StoreURL;
                 $product_data['StoreName'] = $data->Item->Storefront->StoreName;
                 $product_data['Country'] = $data->Item->Country;
-
                 $product_data['ReturnWithin'] = $data->Item->ReturnPolicy->ReturnsWithin;
                 $product_data['ReturnsAccepted'] = $data->Item->ReturnPolicy->ReturnsAccepted;
                 $product_data['ShippingCostPaidBy'] = $data->Item->ReturnPolicy->ShippingCostPaidBy;
-
                 $product_data['AutoPay'] = $data->Item->AutoPay;
                 $product_data['IntegratedMerchantCreditCardEnabled'] = $data->Item->IntegratedMerchantCreditCardEnabled;
                 $product_data['HandlingTime'] = $data->Item->HandlingTime;
@@ -157,46 +167,11 @@
                 return $product_data;
             } else {
 
-                if($write_call_logs){
+                if($this->write_call_logs){
                     $this->Log(true, "GetSingleItem({$item_id}, {$site_id});", "Error: The request has failed.");
                 }
 
                 return "There was an issue with your request.";
-                error_clear_last();
-            }
-        }
-            
-        function GetEbayTime(){
-            // Returns Greenwich Mean Time 
-            // YYYY - MM - DD / HH:MM:SS:MS
-        
-            $request_url = "https://open.api.ebay.com/shopping?callname=GeteBayTime"
-            . "&responseencoding=XML"
-            . "&appid={$this->ebay_app_id}"
-            . "&siteid=0"
-            . "&version=1157";
-
-            $request = file_get_contents($request_url);
-            $data = simplexml_load_string($request);
-            $error = error_get_last();
-            
-            // If the request is GOOD, PHP will return a Notice about trying to reach
-            // an unassigned array offset ($error['message']); 
-            // Might want to use [ error_reporting(0); ] in production.
-            if(!$error['message'] && $data->Ack == "Success"){
-                
-                if($write_call_logs){
-                    $this->Log(true, "GetEbayTime()", "Success.");
-                }
-                
-                return $data->Timestamp;
-            } else {
-                if($write_call_logs){
-                    $this->Log(true, "GetEbayTime()", "Error, failed to return ebay time.");
-                }
- 
-                return "There was an issue with your request.";
-                error_clear_last();
             }
         }
         
@@ -410,7 +385,6 @@
                 
                 $regex = '/(\d{12})/m';
                 preg_match_all($regex, $ebay_url, $matches, PREG_SET_ORDER, 0);
-                print_r($matches);
                 if(count($matches[0]) == 2){
                     
                     // Logging Options
