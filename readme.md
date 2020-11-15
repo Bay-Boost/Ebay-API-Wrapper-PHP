@@ -14,7 +14,7 @@
 | Developer APIs                   |      1     |     0%    |       -       |   -   |
 | Traditional Searching APIs       |      1     |     0%    |       -       |   -   |
 | Traditional Shopping/Buying APIs |      2     |     0%    |       -       |   -   |
-| Traditional Selling APIs         |      8     |    25%    |       -       |   -   |
+| Traditional Selling APIs         |      8     |    25%    |       <a href="https://bay-wrapper-api.cf/#shopping-api">Link</a>       |   -   |
 | After Sale APIs                  |      4     |     0%    |       -       |   -   |
 
 *All listed apis: https://developer.ebay.com/docs*<br>
