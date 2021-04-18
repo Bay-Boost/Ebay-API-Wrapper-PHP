@@ -92,7 +92,6 @@
                 . "&version={$this->ebay_api_version}"
                 . "&ItemID={$item_id}"
                 . $selector;
-print($request_url.PHP_EOL);
             $request = file_get_contents($request_url);
             $data = simplexml_load_string($request);
             return $data;
