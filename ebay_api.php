@@ -78,7 +78,7 @@
                      $selector="&IncludeSelector=Details,Description,TextDescription,ItemSpecifics,Variations,Compatibility"){
             // add &selector= if not given
             if (strlen($selector) >1 && $selector[0] != '&') {
-                $selector="&selector=".$selector;
+                $selector="&IncludeSelector=".$selector;
             } 
             if($html_description === true){
                 // You can't grab both at the same time. So you have to ask for either or. Default is without the HTML Mark-up.
