@@ -74,7 +74,12 @@
             }
         }
 
-        function GetSingleItemData($item_id, $site_id, $html_description){
+        function GetSingleItemData($item_id, $site_id, $html_description,
+                     $selector="&IncludeSelector=Details,Description,TextDescription,ItemSpecifics,Variations,Compatibility"){
+            // add &selector= if not given
+            if (strlen($selector) >1 && $selector[0] != '&') {
+                $selector="&selector=".$selector;
+            } 
             if($html_description === true){
                 // You can't grab both at the same time. So you have to ask for either or. Default is without the HTML Mark-up.
                 $request_url = "{$this->ebay_api_url}/shopping?" 
@@ -84,7 +89,7 @@
                 . "&siteid={$site_id}"
                 . "&version={$this->ebay_api_version}"
                 . "&ItemID={$item_id}"
-                . "&IncludeSelector=Details,Description,ItemSpecifics,Variations,Compatibility";
+                . $selector;
             } else {
                 $request_url = "{$this->ebay_api_url}/shopping?" 
                 . "callname=GetSingleItem"
@@ -93,15 +98,15 @@
                 . "&siteid={$site_id}"
                 . "&version={$this->ebay_api_version}"
                 . "&ItemID={$item_id}"
-                . "&IncludeSelector=Details,Description,TextDescription,ItemSpecifics,Variations,Compatibility";
+                . $selector;
             }
             $request = file_get_contents($request_url);
             $data = simplexml_load_string($request);
             return $data;
         }
 
-        function GetSingleItem($item_id, $site_id, $html_description){
-            $data = $this->GetSingleItemData($item_id, $site_id, $html_description);
+        function GetSingleItem($item_id, $site_id, $html_description=false, $selector="") {
+            $data = $this->GetSingleItemData($item_id, $site_id, $html_description, $selector);
             if($data->Ack == "Success"){
 
                 if($this->write_call_logs){
