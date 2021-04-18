@@ -8,12 +8,18 @@
             $this->ebay_app_id = "Your Ebay Application ID.";
             $this->ebay_dev_id = "Your Ebay development ID.";
             $this->ebay_client_secret = "Your Ebay Client Secret.";
+            $this->ebay_api_version = "1157";
+            $this->ebay_api_url = "https://open.api.ebay.com";
+            // uncomment to use sandbox credentials
+            //$this->ebay_api_url = "https://open.api.sandbox.ebay.com";
         }
         
         // Misc IDs
         private $ebay_app_id;
         private $ebay_dev_id;
         private $ebay_client_secret;
+        private $ebay_api_url;
+        private $ebay_api_version;
 
         // Main Vars
         private $call_logs = [];
@@ -42,11 +48,11 @@
             // Returns Greenwich Mean Time 
             // YYYY - MM - DD / HH:MM:SS:MS
         
-            $request_url = "https://open.api.ebay.com/shopping?callname=GeteBayTime"
+            $request_url = "{$this->ebay_api_url}/shopping?callname=GeteBayTime"
             . "&responseencoding=XML"
             . "&appid={$this->ebay_app_id}"
             . "&siteid=0"
-            . "&version=1157";
+            . "&version={$this->ebay_api_version}";
 
             $request = file_get_contents($request_url);
             $data = simplexml_load_string($request);
@@ -71,21 +77,21 @@
         function GetSingleItem($item_id, $site_id, $html_description){
             if($html_description === true){
                 // You can't grab both at the same time. So you have to ask for either or. Default is without the HTML Mark-up.
-                $request_url = "https://open.api.ebay.com/shopping?" 
+                $request_url = "{$this->ebay_api_url}/shopping?" 
                 . "callname=GetSingleItem"
                 . "&responseencoding=XML"
                 . "&appid={$this->ebay_app_id}"
                 . "&siteid={$site_id}"
-                . "&version=1157"
+                . "&version={$this->ebay_api_version}"
                 . "&ItemID={$item_id}"
                 . "&IncludeSelector=Details,Description,ItemSpecifics,Variations,Compatibility";
             } else {
-                $request_url = "https://open.api.ebay.com/shopping?" 
+                $request_url = "{$this->ebay_api_url}/shopping?" 
                 . "callname=GetSingleItem"
                 . "&responseencoding=XML"
                 . "&appid={$this->ebay_app_id}"
                 . "&siteid={$site_id}"
-                . "&version=1157"
+                . "&version={$this->ebay_api_version}"
                 . "&ItemID={$item_id}"
                 . "&IncludeSelector=Details,Description,TextDescription,ItemSpecifics,Variations,Compatibility";
             }
