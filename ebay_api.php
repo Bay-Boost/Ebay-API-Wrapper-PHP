@@ -389,16 +389,22 @@ print($request_url.PHP_EOL);
                 // The reason I decided to use Regex for this as it was the only consistent thing across all ebay domains.
                 // Also the reason its checking for 2 matches is because Regex returns a "Full Match" and "Group 1" 
                 // Both the exact same thing in this case.
-                
+
                 $regex = '/(\d{12})/m';
-                preg_match_all($regex, $ebay_url, $matches, PREG_SET_ORDER, 0);
+
+                // Gnadelwartz: IMHO itemid is always prefixed by  '/' and postfixed with  '/' or '?' or newline ('$')
+		// uncomment to activate
+                // $regex = '/\/(\d{12})[\/?]/m';
+                preg_match_all($regex, $ebay_url."/", $matches, PREG_SET_ORDER, 0);
+
                 if(count($matches[0]) == 2){
                     
                     // Logging Options
                     $this->Log(true, "GrabItemID(\"{$ebay_url}\");", "Success");
                     
+                $regex = '/(\d{12})/m';
                     // Proceed  
-                    return $matches[0][0];
+                    return $matches[0][1];
 
                 } else if (count($matches[0]) > 2){
 
