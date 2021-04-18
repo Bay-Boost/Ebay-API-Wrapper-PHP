@@ -74,7 +74,7 @@
             }
         }
 
-        function GetSingleItem($item_id, $site_id, $html_description){
+        function GetSingleItemData($item_id, $site_id, $html_description){
             if($html_description === true){
                 // You can't grab both at the same time. So you have to ask for either or. Default is without the HTML Mark-up.
                 $request_url = "{$this->ebay_api_url}/shopping?" 
@@ -95,10 +95,13 @@
                 . "&ItemID={$item_id}"
                 . "&IncludeSelector=Details,Description,TextDescription,ItemSpecifics,Variations,Compatibility";
             }
-
             $request = file_get_contents($request_url);
             $data = simplexml_load_string($request);
-            
+            return $data;
+        }
+
+        function GetSingleItem($item_id, $site_id, $html_description){
+            $data = $this->GetSingleItemData($item_id, $site_id, $html_description);
             if($data->Ack == "Success"){
 
                 if($this->write_call_logs){
