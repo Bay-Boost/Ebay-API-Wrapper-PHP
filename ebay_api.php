@@ -93,7 +93,6 @@
                 . "&ItemID={$item_id}"
                 . $selector;
             $request = file_get_contents($request_url);
-print($request.PHP_EOL);
             $data = simplexml_load_string($request);
             return $data;
         }
