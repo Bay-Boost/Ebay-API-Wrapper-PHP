@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://i.ibb.co/C75cJX1/test.png" /><br>
     This is a wrapper for the Ebay API. I plan on finishing this in my spare time over a few months.<br>
-     | <a href="https://github.com/CainDev" target="_blank">My GitHub Profile</a>
+     <a href="https://github.com/CainDev" target="_blank">My GitHub Profile</a>
 </p>
 <hr>
 <br>
