@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://i.ibb.co/C75cJX1/test.png" /><br>
     This is a wrapper for the Ebay API. I plan on finishing this in my spare time over a few months.<br>
-    <a href="https://docs.bay-boost.com/" target="_blank">Documentation</a> | <a href="https://github.com/CainDev" target="_blank">My GitHub Profile</a>
+     | <a href="https://github.com/CainDev" target="_blank">My GitHub Profile</a>
 </p>
 <hr>
 <br>
@@ -22,11 +22,6 @@
 
 ## How to use?
 Please follow the install guide within our documentation! You can find the link <a href="https://docs.bay-boost.com/#installation-section" target="_blank">Here!</a>
-
-
-## Example Tools (Made with this Wrapper)
-<a href="https://bay-boost.com/product-lookup.php">Product Lookup</a><br>
-<a href="https://bay-boost.com/desc-copy.php">Description Copier</a>
 
 ## Credits
 Xiaoying Riley - Thank you for making a Bootstrap Documentation site. <br>
